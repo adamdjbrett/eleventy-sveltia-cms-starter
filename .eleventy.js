@@ -5,27 +5,43 @@ const htmlmin = require("html-minifier-terser");
 const yaml = require("js-yaml");
 const eleventyNavigationPlugin = require("@11ty/eleventy-navigation");
 const Image = require("@11ty/eleventy-img");
+const fs = require("fs");
+const path = require("path");
 
 module.exports = function(eleventyConfig) {
 
   // https://www.11ty.dev/docs/plugins/image/
   eleventyConfig.addShortcode("generateImage", async function(src, alt, sizes) {
     
-    let metadata = await Image(src, {
-      widths: [500, 1000, "auto"],
-      formats: ["avif", "jpeg"],
-      urlPath: "/assets/img/",
-      outputDir: "./_site/assets/img/"
-    });
-
-    let imageAttributes = {
-      alt,
-      sizes,
-      loading: "lazy",
-      decoding: "async",
-    };
+    // Check if the source is a local file and if it exists
+    if (!src.startsWith('http://') && !src.startsWith('https://')) {
+      const filePath = src.startsWith('/') ? path.join('.', src) : src;
+      if (!fs.existsSync(filePath)) {
+        console.warn(`[Image Warning] Image not found: ${src}, skipping...`);
+        return `<!-- Image not found: ${src} -->`;
+      }
+    }
     
-    return Image.generateHTML(metadata, imageAttributes);
+    try {
+      let metadata = await Image(src, {
+        widths: [500, 1000, "auto"],
+        formats: ["avif", "jpeg"],
+        urlPath: "/assets/img/",
+        outputDir: "./_site/assets/img/"
+      });
+
+      let imageAttributes = {
+        alt,
+        sizes,
+        loading: "lazy",
+        decoding: "async",
+      };
+      
+      return Image.generateHTML(metadata, imageAttributes);
+    } catch (error) {
+      console.warn(`[Image Error] Failed to process image: ${src}`, error.message);
+      return `<!-- Image processing failed: ${src} -->`;
+    }
   
   });
 
